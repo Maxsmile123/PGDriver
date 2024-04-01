@@ -77,16 +77,18 @@ conn_mt = {
                 self.queue:put(false)
                 return get_error(self.raise.pool, 'Connection is broken')
             end
-
             local function convert_table_to_json(tbl)
                 for key, value in pairs(tbl) do
                     if type(value) == "table" then
                         tbl[key] = json.encode(value)
+                        io.write("Res is ", tbl[key], "\n")
                     end
                 end
             end
-            local json_data = convert_table_to_json(data)
-            local status, datas = self.conn:batch_execute("SELECT " .. sql .. "($1::jsonb[])", json_data)
+            io.write("Try Convert\n")
+            convert_table_to_json(data)
+            io.write(type(data), "\n")
+            local status, datas = self.conn:batch_execute("SELECT " .. sql .. "($1::jsonb[])", data)
             if status ~= 0 then
                 self.queue:put(status > 0)
                 return error(datas)
