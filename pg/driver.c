@@ -40,6 +40,7 @@
 #include <pg_config.h>
 /* PostgreSQL types (see catalog/pg_type.h) */
 #define INT2OID 21
+#define JSONBARRAYOID 3807
 #define INT4OID 23
 #define INT8OID 20
 #define NUMERICOID 1700
@@ -302,60 +303,45 @@ lua_parse_param(struct lua_State *L,
 	*type = TEXTOID;
 }
 
-struct DataBatchInfo {
-	ssize_t data_length;
-	ssize_t batch_size;
-};
 
-struct DataBatchInfo lua_get_data_size(struct lua_State* L, int index){
-	struct DataBatchInfo res;
-	res.batch_size = 0;
-	res.data_length = 0;
+ssize_t lua_get_data_size(struct lua_State* L, int index){
+	ssize_t data_length = 0;
 	if (lua_istable(L, index)) {
 		printf("There are table\n");
         lua_pushnil(L);
         while (lua_next(L, index) != 0) {
-			++res.batch_size;
             if (lua_isstring(L, -1)) { // value must be json i.e. string
 				printf("Current data: %s , with len %zu\n", lua_tostring(L, -1), strlen(lua_tostring(L, -1)));
-				res.data_length += strlen(lua_tostring(L, -1));
+				data_length += strlen(lua_tostring(L, -1));
 			} else {
-				res.batch_size = -1;
-				res.data_length = -1;
+				data_length = -1;
 				break;
 			}
             lua_pop(L, 1);
         }
     }
-	return res;
+	return data_length;
 }
 
 char* lua_fill_buffer(
 	struct lua_State* L, 
 	int index,
-	const char **values, 
-	int *lengths, 
-	int *formats
+	const char **values,
+	int *lengths
 ) {
-	struct DataBatchInfo info = lua_get_data_size(L, index);
-	if (info.batch_size == -1 || info.data_length == -1) {
+	ssize_t data_length = lua_get_data_size(L, index);
+	if (data_length == -1) {
 		return NULL;
 	}
 
-	printf("info.batch_size %zd\n info.data_length %zd\n", info.batch_size, info.data_length);
+	*lengths = data_length;
 
 	// [datas][data_lengths][formats]
-	char* buffer = (char *)malloc(
-		info.data_length + info.batch_size * (sizeof(*lengths) + sizeof(*formats))
-	);
+	char* buffer = (char *)malloc(data_length);
 
-	printf("Allocate buffer of length %lu with lua\n", 
-		info.data_length + info.batch_size * (sizeof(*lengths) + sizeof(*formats))
-	);
+	printf("Allocate buffer of length %lu with lua\n", data_length);
 
 	values = (const char **)buffer;
-	lengths = (int*)(buffer + info.data_length);
-	formats = (int*)(buffer + info.data_length + info.batch_size * sizeof(*lengths));
 
 	size_t idx = 0;
 	size_t current_len = 0;
@@ -364,11 +350,7 @@ char* lua_fill_buffer(
         while (lua_next(L, index) != 0) {
             if (lua_isstring(L, -1)) {
 				*(values + idx) = lua_tolstring(L, -1, &current_len);
-				printf("BUFFER: %s\n", *values);
-				*(lengths + idx) = current_len;
-				printf("BUFFER: %d\n", *lengths);
-				*(formats + idx) = 0;
-				printf("BUFFER: %d\n", *formats);
+				printf("BUFFER: %s\n", *(values + idx));
 			} else {
 				return NULL;
 			}
@@ -401,19 +383,22 @@ lua_pg_batch_execute(struct lua_State* L)
 	printf("SQL Command: %s\n", sql);
 
 	const char** paramValues = NULL;
-	int* paramLengths = NULL;
-	int* paramFormats = NULL;
+	Oid paramTypes[1] = {JSONBARRAYOID};
+	int paramLengths[1] = {0};
+	int paramFormats[1] = {0};
 
-	char* buffer = lua_fill_buffer(L, 3, paramValues, paramLengths, paramFormats);
+	char* buffer = lua_fill_buffer(L, 3, paramValues, paramLengths);
 	if (!buffer) {
 		safe_pushstring(L, "Data must be present as table with json values");
 		return lua_push_error(L);
 	}
 
-	printf("%d\n", *(int*)(buffer + 19));
-	printf("%d\n", *(int*)(buffer + 19 + 4));
+	paramValues = (const char**)(buffer);
+	printf("%p\n%p\n%p\n", paramValues, paramLengths, paramFormats);
 
-	int res = PQsendQueryParams(conn, sql, 1, NULL,
+	*paramLengths = 2; // TODO(maxsmile123) Try 
+
+	int res = PQsendQueryParams(conn, sql, 1, paramTypes,
 			paramValues, paramLengths, paramFormats, 0);
 	free(buffer);
 

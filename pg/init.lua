@@ -88,7 +88,7 @@ conn_mt = {
             io.write("Try Convert\n")
             convert_table_to_json(data)
             io.write(type(data), "\n")
-            local status, datas = self.conn:batch_execute("SELECT " .. sql .. "($1::jsonb[])", data)
+            local status, datas = self.conn:batch_execute("SELECT " .. sql .. "(ARRAY[$1]::jsonb[])", data)
             if status ~= 0 then
                 self.queue:put(status > 0)
                 return error(datas)
