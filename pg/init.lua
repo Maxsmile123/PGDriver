@@ -78,17 +78,44 @@ conn_mt = {
                 return get_error(self.raise.pool, 'Connection is broken')
             end
             local function convert_table_to_json(tbl)
+                local batch_size = 0
+                local data_size = 0
                 for key, value in pairs(tbl) do
                     if type(value) == "table" then
+                        batch_size = batch_size + 1
                         tbl[key] = json.encode(value)
+                        data_size = data_size + string.len(tbl[key])
+                        io.write("len is ", string.len(tbl[key]), "\n")
                         io.write("Res is ", tbl[key], "\n")
+                        io.write(type(tbl[key]), "\n")
                     end
                 end
+                return batch_size, data_size
             end
             io.write("Try Convert\n")
-            convert_table_to_json(data)
-            io.write(type(data), "\n")
-            local status, datas = self.conn:batch_execute("SELECT " .. sql .. "(ARRAY[$1]::jsonb[])", data)
+            local batch_size, data_size = convert_table_to_json(data)
+            if batch_size == 0 then
+                self.queue:put(false)
+                return get_error(self.raise.pool, 'Batch is empty') 
+            end
+            print(batch_size)
+            print(data_size)
+
+            local function construct_command(batch_size)
+                local sql_command = "SELECT " .. sql .. "(ARRAY["
+                for i=1, batch_size, 1 do
+                    if i ~= batch_size then
+                        sql_command = sql_command .. "$" .. i .. "::jsonb, "
+                    else
+                        sql_command = sql_command .. "$" .. i .. "::jsonb"
+                    end
+                end
+                sql_command = sql_command .. "]::jsonb[])"
+                return sql_command
+            end
+            local status, datas = self.conn:batch_execute(
+                construct_command(batch_size), batch_size, data
+            )
             if status ~= 0 then
                 self.queue:put(status > 0)
                 return error(datas)

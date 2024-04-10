@@ -326,17 +326,13 @@ ssize_t lua_get_data_size(struct lua_State* L, int index){
 char* lua_fill_buffer(
 	struct lua_State* L, 
 	int index,
-	const char **values,
-	int *lengths
+	const char **values
 ) {
 	ssize_t data_length = lua_get_data_size(L, index);
 	if (data_length == -1) {
 		return NULL;
 	}
 
-	*lengths = data_length;
-
-	// [datas][data_lengths][formats]
 	char* buffer = (char *)malloc(data_length);
 
 	printf("Allocate buffer of length %lu with lua\n", data_length);
@@ -369,37 +365,37 @@ lua_pg_batch_execute(struct lua_State* L)
 	printf("Start batch execute\n. Number of data on stack: %d\n", lua_gettop(L));
 	PGconn *conn = lua_check_pgconn(L, 1);
 	if (!lua_isstring(L, 2)) {
-		safe_pushstring(L, "Second param should be a sql command");
+		safe_pushstring(L, "First param should be a sql command");
 		return lua_push_error(L);
 	}
 
-	if (!lua_istable(L, 3)) {
+	if (!lua_isnumber(L, 3)) {
+		safe_pushstring(L, "Second param should be a batch size");
+		return lua_push_error(L);
+	}
+
+	if (!lua_istable(L, 4)) {
 		safe_pushstring(L, "Third param should be a table with data");
 		return lua_push_error(L);
 	}
 
 	const char* sql = lua_tostring(L, 2);
+	int batch_size = lua_tonumber(L, 3);
 
 	printf("SQL Command: %s\n", sql);
 
 	const char** paramValues = NULL;
-	Oid paramTypes[1] = {JSONBARRAYOID};
-	int paramLengths[1] = {0};
-	int paramFormats[1] = {0};
 
-	char* buffer = lua_fill_buffer(L, 3, paramValues, paramLengths);
+	char* buffer = lua_fill_buffer(L, 4, paramValues);
 	if (!buffer) {
 		safe_pushstring(L, "Data must be present as table with json values");
 		return lua_push_error(L);
 	}
 
 	paramValues = (const char**)(buffer);
-	printf("%p\n%p\n%p\n", paramValues, paramLengths, paramFormats);
 
-	*paramLengths = 2; // TODO(maxsmile123) Try 
-
-	int res = PQsendQueryParams(conn, sql, 1, paramTypes,
-			paramValues, paramLengths, paramFormats, 0);
+	int res = PQsendQueryParams(conn, sql, batch_size, NULL,
+			paramValues, NULL, NULL, 0);
 	free(buffer);
 
 	if (res == -1) {
