@@ -333,7 +333,7 @@ char* lua_fill_buffer(
 		return NULL;
 	}
 
-	char* buffer = (char *)malloc(data_length);
+	char* buffer = (char *)lua_newuserdata(L , data_length);
 
 	printf("Allocate buffer of length %lu with lua\n", data_length);
 
@@ -396,7 +396,6 @@ lua_pg_batch_execute(struct lua_State* L)
 
 	int res = PQsendQueryParams(conn, sql, batch_size, NULL,
 			paramValues, NULL, NULL, 0);
-	free(buffer);
 
 	if (res == -1) {
 		lua_pushinteger(L, PQstatus(conn) == CONNECTION_BAD ? -1: 0);
