@@ -73,10 +73,12 @@ conn_mt = {
             if not self.usable then
                 return get_error(self.raise.pool, 'Connection is not usable')
             end
+
             if not self.queue:get() then
                 self.queue:put(false)
                 return get_error(self.raise.pool, 'Connection is broken')
             end
+
             local function convert_table_to_json(tbl)
                 local batch_size = 0
                 local data_size = 0
@@ -87,17 +89,18 @@ conn_mt = {
                         data_size = data_size + string.len(tbl[key])
                         io.write("len is ", string.len(tbl[key]), "\n")
                         io.write("Res is ", tbl[key], "\n")
-                        io.write(type(tbl[key]), "\n")
                     end
                 end
                 return batch_size, data_size
             end
-            io.write("Try Convert\n")
+
             local batch_size, data_size = convert_table_to_json(data)
+
             if batch_size == 0 then
                 self.queue:put(false)
                 return get_error(self.raise.pool, 'Batch is empty') 
             end
+
             print(batch_size)
             print(data_size)
 
@@ -113,9 +116,11 @@ conn_mt = {
                 sql_command = sql_command .. "]::jsonb[])"
                 return sql_command
             end
+
             local status, datas = self.conn:batch_execute(
-                construct_command(batch_size), batch_size, data
+                construct_command(batch_size), batch_size, data_size, data
             )
+
             if status ~= 0 then
                 self.queue:put(status > 0)
                 return error(datas)
