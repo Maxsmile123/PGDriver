@@ -304,26 +304,6 @@ lua_parse_param(struct lua_State *L,
 }
 
 
-ssize_t lua_get_data_size(struct lua_State* L, int index){
-	ssize_t data_length = 0;
-	if (lua_istable(L, index)) {
-		printf("There are table\n");
-        lua_pushnil(L);
-        while (lua_next(L, index) != 0) {
-            if (lua_isstring(L, -1)) { // value must be json i.e. string
-				printf("Current data: %s , with len %zu\n", lua_tostring(L, -1), strlen(lua_tostring(L, -1)));
-				data_length += strlen(lua_tostring(L, -1));
-			} else {
-				data_length = -1;
-				break;
-			}
-            lua_pop(L, 1);
-        }
-    }
-	return data_length;
-}
-
-
 void lua_fill_buffer(
 	struct lua_State* L, 
 	int index,
@@ -336,7 +316,6 @@ void lua_fill_buffer(
         while (lua_next(L, index) != 0) {
             if (lua_isstring(L, -1)) {
 				*(values + idx) = lua_tolstring(L, -1, &current_len);
-				printf("BUFFER: %s\n", *(values + idx));
 			} else {
 				return;
 			}
@@ -376,12 +355,14 @@ lua_pg_batch_execute(struct lua_State* L)
 	int batch_size = lua_tonumber(L, 3);
 	int data_size = lua_tonumber(L, 4);
 
-	printf("SQL Command: %s\n", sql);
+	printf("Execute command: %s\n", sql);
 
 	const char** paramValues = (const char**)lua_newuserdata(L , data_size);
 
 	lua_fill_buffer(L, 5, paramValues);
 
+	// PostgreSQL don't support sending JSONB as binary data
+	// See line 99: https://doxygen.postgresql.org/jsonb_8c_source.html
 	int res = PQsendQueryParams(conn, sql, batch_size, NULL,
 			paramValues, NULL, NULL, 0);
 

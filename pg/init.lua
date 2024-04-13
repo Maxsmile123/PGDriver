@@ -87,8 +87,8 @@ conn_mt = {
                         batch_size = batch_size + 1
                         tbl[key] = json.encode(value)
                         data_size = data_size + string.len(tbl[key])
-                        io.write("len is ", string.len(tbl[key]), "\n")
-                        io.write("Res is ", tbl[key], "\n")
+                    else
+                        return nil, nil
                     end
                 end
                 return batch_size, data_size
@@ -96,13 +96,15 @@ conn_mt = {
 
             local batch_size, data_size = convert_table_to_json(data)
 
-            if batch_size == 0 then
-                self.queue:put(false)
-                return get_error(self.raise.pool, 'Batch is empty') 
+            if not batch_size or not data_size then
+                self.queue:put(true)
+                return error('Data need to be table of tables')
             end
 
-            print(batch_size)
-            print(data_size)
+            if batch_size == 0 then
+                self.queue:put(true)
+                return true
+            end
 
             local function construct_command(batch_size)
                 local sql_command = "SELECT " .. sql .. "(ARRAY["
