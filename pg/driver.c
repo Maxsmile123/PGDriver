@@ -326,7 +326,6 @@ void lua_fill_buffer(
 static int
 lua_pg_batch_execute(struct lua_State* L) 
 {
-	printf("Start batch execute\n. Number of data on stack: %d\n", lua_gettop(L));
 	PGconn *conn = lua_check_pgconn(L, 1);
 
 	if (!lua_isstring(L, 2)) {
