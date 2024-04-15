@@ -2,7 +2,7 @@ package = 'pg'
 version = 'scm-1'
 source  = {
     url    = 'git+https://github.com/Maxsmile123/PGDriver/',
-    branch = 'bathc_execute',
+    branch = 'master',
 }
 description = {
     summary  = "PostgreSQL connector for Tarantool",
