@@ -69,7 +69,7 @@ conn_mt = {
             self.queue:put(true)
             return datas, true
         end,
-        batch_execute = function(self, sql, data)
+        batch_execute = function(self, pg_function, data)
             if not self.usable then
                 return get_error(self.raise.pool, 'Connection is not usable')
             end
@@ -107,7 +107,7 @@ conn_mt = {
             end
 
             local function construct_command(batch_size)
-                local sql_command = "SELECT " .. sql .. "(ARRAY["
+                local sql_command = "SELECT " .. pg_function .. "(ARRAY["
                 for i=1, batch_size, 1 do
                     if i ~= batch_size then
                         sql_command = sql_command .. "$" .. i .. "::jsonb, "

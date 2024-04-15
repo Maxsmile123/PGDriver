@@ -28,7 +28,6 @@
  */
 #include <stddef.h>
 #include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
@@ -40,7 +39,6 @@
 #include <pg_config.h>
 /* PostgreSQL types (see catalog/pg_type.h) */
 #define INT2OID 21
-#define JSONBOID 3802
 #define INT4OID 23
 #define INT8OID 20
 #define NUMERICOID 1700
@@ -354,8 +352,6 @@ lua_pg_batch_execute(struct lua_State* L)
 	const char* sql = lua_tostring(L, 2);
 	int batch_size = lua_tonumber(L, 3);
 	int data_size = lua_tonumber(L, 4);
-
-	printf("Execute command: %s\n", sql);
 
 	const char** paramValues = (const char**)lua_newuserdata(L , data_size);
 
