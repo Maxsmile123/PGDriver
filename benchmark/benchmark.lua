@@ -64,11 +64,24 @@ local InsertionsNum = 100000
 local FibersNumArray = {1, 2, 4, 8, 16}
 local BatchSizesArray = {100000, 10000, 1000, 100, 10}
 
+-- for _, FibersNum in ipairs(FibersNumArray) do
+--     for _, BatchSize in ipairs(BatchSizesArray) do
+--         local start_time = os.clock()
+--         RunBatchStressTest(FibersNum, BatchSize, InsertionsNum / BatchSize)
+--         local end_time = os.clock()
+--         local elapsed_time = end_time - start_time
+--         print("Время работы функции: " .. elapsed_time .. " секунд")
+--     end
+-- end
+
 for _, FibersNum in ipairs(FibersNumArray) do
-    for _, BatchSize in ipairs(BatchSizesArray) do
-        RunBatchStressTest(FibersNum, BatchSize, InsertionsNum / BatchSize)
-    end
+    local start_time = os.clock()
+    RunParamStressTest(FibersNum, InsertionsNum)
+    local end_time = os.clock()
+    local elapsed_time = end_time - start_time
+    print("Время работы функции: " .. elapsed_time .. " секунд")
 end
+
 
 
 
