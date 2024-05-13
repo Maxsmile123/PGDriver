@@ -55,11 +55,11 @@ conn_mt = {
     __index = {
         execute = function(self, sql, ...)
             if not self.usable then
-                return get_error(self.raise.pool, 'Connection is not usable')
+                return error('Connection is not usable')
             end
             if not self.queue:get() then
                 self.queue:put(false)
-                return get_error(self.raise.pool, 'Connection is broken')
+                return error('Connection is broken')
             end
             local status, datas = self.conn:execute(sql, ...)
             if status ~= 0 then
@@ -93,7 +93,7 @@ conn_mt = {
                 end
                 return batch_size, data_size
             end
-
+            
             local batch_size, data_size = convert_table_to_json(data)
 
             if not batch_size or not data_size then
@@ -106,21 +106,17 @@ conn_mt = {
                 return true
             end
 
-            local function construct_command(batch_size)
-                local sql_command = "SELECT " .. pg_function .. "(ARRAY["
-                for i=1, batch_size, 1 do
-                    if i ~= batch_size then
-                        sql_command = sql_command .. "$" .. i .. "::jsonb, "
-                    else
-                        sql_command = sql_command .. "$" .. i .. "::jsonb"
-                    end
+            local function buildJsonbArrayString(n)
+                local placeholders = {}
+                for i = 1, n, 1 do
+                    placeholders[i] = string.format("$%d::jsonb", i)
                 end
-                sql_command = sql_command .. "]::jsonb[])"
-                return sql_command
+                local placeholdersStr = table.concat(placeholders, ", ")
+                return string.format("SELECT %s(ARRAY[%s]::jsonb[])", pg_function, placeholdersStr)
             end
 
             local status, datas = self.conn:batch_execute(
-                construct_command(batch_size), batch_size, data_size, data
+                buildJsonbArrayString(batch_size), batch_size, data_size, data
             )
 
             if status ~= 0 then
