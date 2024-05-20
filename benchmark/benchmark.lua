@@ -22,7 +22,7 @@ function SendBatchData(Pool, BatchSize, BatchCount)
         local BatchData = GenerateBatchData(BatchSize,
             {cur_balance = 10, delta = -1, operation_time = "10:00", description = "test", UID = 0}
         )
-        conn:batch_execute("insert_json_array", BatchData)
+        conn:batch_execute("insert_jsonb_array", BatchData)
     end
     Pool:put(conn)
 end
@@ -54,18 +54,18 @@ if conn == nil then error(msg) end
 print("Drop")
 conn:execute("DROP TABLE IF EXISTS _test_table")
 print("Create")
-conn:execute("CREATE TABLE _test_table(cur_balance bigint, delta bigint, operation_time text, description text, UID bigint)")
+conn:execute("CREATE TABLE _test_table(cur_balance int, delta int, operation_time text, description text, UID int)")
 
 conn:execute("DROP TABLE IF EXISTS my_table")
-conn:execute("CREATE TABLE my_table(login text, data JSONB)")
+conn:execute("CREATE TABLE my_table(data JSONB)")
 
 conn:execute("SELECT pg_stat_statements_reset()")
 
 local InsertionsNum = 1000000
 -- local FibersNumArray = {1, 2, 4, 8, 16}
-local FibersNumArray = {1} -- 31 * 100000 = 3 100 000
+local FibersNumArray = {8} -- 31 * 100000 = 3 100 000
 -- local BatchSizesArray = {100000, 10000, 1000, 100, 10}
-local BatchSizesArray = {100}
+local BatchSizesArray = {10000}
 
 for _, FibersNum in ipairs(FibersNumArray) do
     for _, BatchSize in ipairs(BatchSizesArray) do

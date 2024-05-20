@@ -112,7 +112,7 @@ conn_mt = {
                     placeholders[i] = string.format("$%d::jsonb", i)
                 end
                 local placeholdersStr = table.concat(placeholders, ", ")
-                return string.format("SELECT %s(ARRAY[%s]::jsonb[])", pg_function, placeholdersStr)
+                return string.format("SELECT %s(ARRAY[%s])", pg_function, placeholdersStr)
             end
 
             local status, datas = self.conn:batch_execute(
