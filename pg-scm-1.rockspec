@@ -1,7 +1,7 @@
 package = 'pg'
 version = 'scm-1'
 source  = {
-    url    = 'git+https://github.com/tarantool/pg.git',
+    url    = 'git+https://github.com/Maxsmile123/PGDriver/',
     branch = 'master',
 }
 description = {
@@ -10,7 +10,8 @@ description = {
     license  = 'BSD',
 }
 dependencies = {
-    'lua >= 5.1'
+    'lua >= 5.1',
+    'dkjson >= 2.6'
 }
 external_dependencies = {
     TARANTOOL = {

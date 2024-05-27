@@ -30,6 +30,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <string.h>
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -300,6 +301,82 @@ lua_parse_param(struct lua_State *L,
 	*type = TEXTOID;
 }
 
+
+void lua_fill_buffer(
+	struct lua_State* L, 
+	int index,
+	const char **values
+) {
+	size_t idx = 0;
+	size_t current_len = 0;
+	if (lua_istable(L, index)) {
+        lua_pushnil(L);
+        while (lua_next(L, index) != 0) {
+            if (lua_isstring(L, -1)) {
+				*(values + idx) = lua_tolstring(L, -1, &current_len);
+			} else {
+				return;
+			}
+			++idx;
+            lua_pop(L, 1);
+        }
+    }
+}
+
+static int
+lua_pg_batch_execute(struct lua_State* L) 
+{
+	PGconn *conn = lua_check_pgconn(L, 1);
+
+	if (!lua_isstring(L, 2)) {
+		safe_pushstring(L, "First param should be a sql command");
+		return lua_push_error(L);
+	}
+
+	if (!lua_isnumber(L, 3)) {
+		safe_pushstring(L, "Second param should be a batch size");
+		return lua_push_error(L);
+	}
+
+	if (!lua_isnumber(L, 4)) {
+		safe_pushstring(L, "Second param should be a data size");
+		return lua_push_error(L);
+	}
+
+	if (!lua_istable(L, 5)) {
+		safe_pushstring(L, "Third param should be a table with data");
+		return lua_push_error(L);
+	}
+
+	const char* sql = lua_tostring(L, 2);
+	int batch_size = lua_tonumber(L, 3);
+	int data_size = lua_tonumber(L, 4);
+
+	const char** paramValues = (const char**)lua_newuserdata(L , data_size);
+
+	lua_fill_buffer(L, 5, paramValues);
+
+	// PostgreSQL don't support sending JSONB as binary data
+	// See line 99: https://doxygen.postgresql.org/jsonb_8c_source.html
+	int res = PQsendQueryParams(conn, sql, batch_size, NULL,
+			paramValues, NULL, NULL, 0);
+
+	if (res == -1) {
+		lua_pushinteger(L, PQstatus(conn) == CONNECTION_BAD ? -1: 0);
+		lua_pushstring(L, PQerrorMessage(conn));
+		return 2;
+	}
+
+	lua_pushinteger(L, 0);
+	lua_newtable(L);
+
+	int res_no = 1;
+	int status_ok = 1;
+	while ((status_ok = pg_resultget(L, conn, &res_no, status_ok)));
+
+	return 2;
+};
+
 /**
  * Start query execution
  */
@@ -545,6 +622,7 @@ luaopen_pg_driver(lua_State *L)
 {
 	static const struct luaL_Reg methods [] = {
 		{"execute",	lua_pg_execute},
+		{"batch_execute",	lua_pg_batch_execute},
 #if PG_VERSION_NUM >= 90000
 		{"quote",	lua_pg_quote},
 		{"quote_ident",	lua_pg_quote_ident},

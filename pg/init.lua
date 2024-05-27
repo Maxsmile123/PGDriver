@@ -3,6 +3,7 @@
 local fiber = require('fiber')
 local driver = require('pg.driver')
 local ffi = require('ffi')
+local json = require("dkjson")
 
 local pool_mt
 local conn_mt
@@ -54,13 +55,70 @@ conn_mt = {
     __index = {
         execute = function(self, sql, ...)
             if not self.usable then
+                return error('Connection is not usable')
+            end
+            if not self.queue:get() then
+                self.queue:put(false)
+                return error('Connection is broken')
+            end
+            local status, datas = self.conn:execute(sql, ...)
+            if status ~= 0 then
+                self.queue:put(status > 0)
+                return error(datas)
+            end
+            self.queue:put(true)
+            return datas, true
+        end,
+        batch_execute = function(self, pg_function, data)
+            if not self.usable then
                 return get_error(self.raise.pool, 'Connection is not usable')
             end
+
             if not self.queue:get() then
                 self.queue:put(false)
                 return get_error(self.raise.pool, 'Connection is broken')
             end
-            local status, datas = self.conn:execute(sql, ...)
+
+            local function convert_table_to_json(tbl)
+                local batch_size = 0
+                local data_size = 0
+                for key, value in pairs(tbl) do
+                    if type(value) == "table" then
+                        batch_size = batch_size + 1
+                        tbl[key] = json.encode(value)
+                        data_size = data_size + string.len(tbl[key])
+                    else
+                        return nil, nil
+                    end
+                end
+                return batch_size, data_size
+            end
+            
+            local batch_size, data_size = convert_table_to_json(data)
+
+            if not batch_size or not data_size then
+                self.queue:put(true)
+                return error('Data need to be table of tables')
+            end
+
+            if batch_size == 0 then
+                self.queue:put(true)
+                return true
+            end
+
+            local function buildJsonbArrayString(n)
+                local placeholders = {}
+                for i = 1, n, 1 do
+                    placeholders[i] = string.format("$%d::jsonb", i)
+                end
+                local placeholdersStr = table.concat(placeholders, ", ")
+                return string.format("SELECT %s(ARRAY[%s])", pg_function, placeholdersStr)
+            end
+
+            local status, datas = self.conn:batch_execute(
+                buildJsonbArrayString(batch_size), batch_size, data_size, data
+            )
+
             if status ~= 0 then
                 self.queue:put(status > 0)
                 return error(datas)
