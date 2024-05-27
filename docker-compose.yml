@@ -1,0 +1,39 @@
+version: '3'
+
+services:
+
+  tarantool:
+    image: tarantool/tarantool:2.8
+    ports:
+      - "3301:3301"
+    volumes:
+      - ./tarantool:/var/lib/tarantool
+    command: /bin/sh -c "luarocks install https://raw.githubusercontent.com/maxsmile123/pg/master/pg-scm-1.rockspec --local"
+
+  postgresql:
+    image: postgres:12
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=mydb
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=mypassword
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+
+volumes:
+  postgres:
+  tarantool:
+
+
+
+
+
+
+
+
+
+
+
+
+
