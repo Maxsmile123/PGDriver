@@ -65,7 +65,7 @@ local InsertionsNum = 1000000
 -- local FibersNumArray = {1, 2, 4, 8, 16}
 local FibersNumArray = {8} -- 31 * 100000 = 3 100 000
 -- local BatchSizesArray = {100000, 10000, 1000, 100, 10}
-local BatchSizesArray = {10000}
+local BatchSizesArray = {1000}
 
 for _, FibersNum in ipairs(FibersNumArray) do
     for _, BatchSize in ipairs(BatchSizesArray) do

@@ -23,7 +23,7 @@ make install
 You can also use LuaRocks:
 
 ``` bash
-luarocks install https://raw.githubusercontent.com/tarantool/pg/master/pg-scm-1.rockspec --local
+luarocks install https://raw.githubusercontent.com/maxsmile123/pg/master/pg-scm-1.rockspec --local
 ```
 
 See [tarantool/rocks][TarantoolRocks] for LuaRocks configuration details.
@@ -76,6 +76,20 @@ tarantool> conn:execute("SELECT $1 AS a, 'xx' AS b", 42)
       b: xx
     ...
 ```
+
+### `con:batch_execute(function_name, data)`
+
+Batch execute to a database.
+
+*Options*:
+
+ - `function_name` - PostgreSQL function name for proccesing data batch
+ - `data` - Lua array with Lua tables
+
+*Returns*:
+
+ - `connection ~= nil` on success
+ - `error(reason)` on error
 
 ### `conn:begin()`
 
